@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta http-equiv="X-UA-Compatible" content="ie=edge">
+		<title>摄像头拍照</title>
+	</head>
+	<body>
+		<video id="video" width="480" height="320" controls>
+		</video>
+		<div>
+			<button id="capture">拍照</button>
+		</div>
+		<canvas id="canvas" width="480" height="320"></canvas>
+		<script src="./reqrcode.js" type="text/javascript" charset="utf-8"></script>
+		<a href="" id="download-link"></a>
+		<script>
+			//访问用户媒体设备的兼容方法
+			function getUserMedia(constraints, success, error) {
+				if (navigator.mediaDevices.getUserMedia) {
+					//最新的标准API
+					navigator.mediaDevices.getUserMedia(constraints).then(success).catch(error);
+				} else if (navigator.webkitGetUserMedia) {
+					//webkit核心浏览器
+					navigator.webkitGetUserMedia(constraints, success, error)
+				} else if (navigator.mozGetUserMedia) {
+					//firfox浏览器
+					navigator.mozGetUserMedia(constraints, success, error);
+				} else if (navigator.getUserMedia) {
+					//旧版API
+					navigator.getUserMedia(constraints, success, error);
+				} else {
+					alert('asdfasdfa')
+				}
+			}
+
+			let video = document.getElementById('video');
+			let canvas = document.getElementById('canvas');
+			let context = canvas.getContext('2d');
+
+			function success(stream) {
+
+				//兼容webkit核心浏览器
+				let CompatibleURL = window.URL || window.webkitURL;
+				//将视频流设置为video元素的源
+				console.log(stream);
+
+				//video.src = CompatibleURL.createObjectURL(stream);
+				video.srcObject = stream;
+				video.play();
+			}
+
+			function error(error) {
+				alert(`访问用户媒体设备失败${error.name}, ${error.message}`)
+				console.log(`访问用户媒体设备失败${error.name}, ${error.message}`);
+			}
+			// alert(navigator.mediaDevices)
+			if ((navigator.mediaDevices && navigator.mediaDevices.getUserMedia) || navigator.getUserMedia || navigator
+				.webkitGetUserMedia || navigator.mozGetUserMedia) {
+				//调用用户媒体设备, 访问摄像头
+				getUserMedia({
+					video: {
+						width: 480,
+						height: 320,
+						facingMode: "environment"
+					}
+				}, success, error);
+			} else {
+				alert('不支持访问用户媒体');
+			}
+			// alert('开始')
+
+			document.getElementById('capture').addEventListener('click', function() {
+				// context.drawImage(video, 0, 0, 480, 320); 
+				canvasToBlob()
+			})
+			
+			
+			setInterval(() => {
+				canvasToBlob()
+			}, 1500)
+			
+			function canvasToBlob() {
+				context.drawImage(video, 0, 0, 480, 320); 
+				canvas.toBlob(
+					blob => {
+						qrcode.decode(getObjectURL(blob))
+						qrcode.callback = (codeRes) => {
+							if (codeRes.indexOf('error') >= 0) {
+								// alert("失败")
+								// console.log("失败")
+							} else {
+								// 二维码识别成功
+								console.log('成功')
+								let r = decodeStr(codeRes)
+								this.qrCodeRes = r
+								window.open(r)
+							}
+						}
+					}
+				)
+			}
+			function getObjectURL(file) {
+				var url = null
+				if (window.createObjectURL !== undefined) { // basic
+					url = window.createObjectURL(file)
+				} else if (window.URL !== undefined) { // mozilla(firefox)
+					url = window.URL.createObjectURL(file)
+				} else if (window.webkitURL !== undefined) { // webkit or chrome
+					url = window.webkitURL.createObjectURL(file)
+				}
+				console.log(url)
+				return url
+			}
+			function decodeStr(str) {
+				var out, i, len, c;
+				var char2, char3;
+				out = "";
+				len = str.length;
+				i = 0;
+				while (i < len) {
+					c = str.charCodeAt(i++);
+					switch (c >> 4) {
+						case 0:
+						case 1:
+						case 2:
+						case 3:
+						case 4:
+						case 5:
+						case 6:
+						case 7:
+							// 0xxxxxxx
+							out += str.charAt(i - 1);
+							break;
+						case 12:
+						case 13:
+							// 110x xxxx 10xx xxxx
+							char2 = str.charCodeAt(i++);
+							out += String.fromCharCode(((c & 0x1F) << 6) | (char2 & 0x3F));
+							break;
+						case 14:
+							// 1110 xxxx 10xx xxxx 10xx xxxx
+							char2 = str.charCodeAt(i++);
+							char3 = str.charCodeAt(i++);
+							out += String.fromCharCode(((c & 0x0F) << 12) |
+								((char2 & 0x3F) << 6) |
+								((char3 & 0x3F) << 0));
+							break;
+					}
+				}
+				return out;
+			}
+		</script>
+	</body>
+</html>
